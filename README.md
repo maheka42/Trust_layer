@@ -1,130 +1,94 @@
 # TrustLayer
 
-Payment fraud systems often hide their reasoning. Analysts see a score, not why a charge was blocked, sent to review, or allowed. That makes disputes hard to audit and makes “unusual but legitimate” activity look like an attack.
+TrustLayer is an explainable agentic risk manager built for the Razorpay AI Buildathon.
 
-TrustLayer is an explainable, agentic transaction risk investigation system. For a selected payment it gathers user history, device, merchant, and chargeback context, applies a transparent rule-based score, issues ALLOW / REVIEW / BLOCK, and streams a short explanation of the points that were actually added.
+It investigates transactions using user history, device information, merchant risk, transaction timing, and location. It then calculates a transparent risk score and returns one of three decisions:
 
-## Architecture
+**ALLOW | REVIEW | BLOCK**
 
-```
+The system is designed to explain *why* a transaction was flagged instead of producing an unexplained fraud score.
+
+## Live Demo
+
+Frontend: https://trust-layer-smoky.vercel.app
+
+Backend API: https://trust-layer-backend-wta9.onrender.com
+
+## How It Works
+
 Transaction
-    ↓
-History Agent
-    ↓
-Device Agent
-    ↓
-Merchant Check
-    ↓
-Explainable Risk Engine
-    ↓
-Decision
-    ↓
-Explanation Agent
-```
+→ History Check
+→ Device Check
+→ Merchant Check
+→ Risk Engine
+→ Decision
+→ Explanation
 
-The risk engine is intentionally rule-based/statistical rather than a trained ML classifier. This prototype uses synthetic data and prioritizes transparent, auditable reasoning over opaque model output.
+The investigation progress is streamed live to the dashboard using Server-Sent Events (SSE).
 
-## Prerequisites
+## Risk Scoring
 
-- Python 3.11+
-- `seed_data.db` in the project root (created by the generator below)
+The risk score ranges from 0–100.
 
-## Installation
+- Amount anomaly: up to 35 points
+- Device risk: up to 20 points
+- Merchant risk: up to 20 points
+- Unusual time: up to 15 points
+- Location mismatch: up to 10 points
 
-From the project root:
+Decision:
 
-```
-python -m pip install -r backend/requirements.txt
-```
+- 0–29: ALLOW
+- 30–70: REVIEW
+- 71–100: BLOCK
 
-Required packages: `fastapi`, `uvicorn`, `groq`. Groq is optional at runtime. If `GROQ_API_KEY` is missing or the API fails, TrustLayer uses a deterministic local explanation built only from triggered signals.
+## Dataset
 
-## Generate synthetic data
+The prototype uses reproducible synthetic data.
 
-```
-python backend/data_generator.py
-```
+- 50 users
+- 689 transactions
+- 110 devices
+- 40 merchants
+- 20 chargebacks
+- 482 normal transactions
+- 137 injected fraud transactions
+- 70 legitimate unusual trap transactions
 
-This creates `seed_data.db` with 50 users, 500–800 transactions (about 70% normal, 20% injected fraud, 10% legitimate unusual traps), devices, merchants, and a small set of historical chargebacks. Re-running the generator recreates the database so records are not duplicated. Seed: `random.seed(42)`.
+The trap transactions are intentionally unusual but legitimate and are used to test whether the system can avoid flagging every unusual transaction as fraud.
 
-## Start backend
+## AI Explanation
 
-From the project root:
+The risk score is calculated using transparent rules.
 
-```
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-```
+The LLM is used only to explain the calculated risk signals in simple language.
 
-API:
+If the Groq API is unavailable, TrustLayer uses a local fallback explanation so the investigation can still complete.
 
-- `GET /transactions`
-- `GET /stats`
-- `GET /investigate/{transaction_id}` (SSE)
+## Tech Stack
 
-## Start frontend
+- Python
+- FastAPI
+- SQLite
+- HTML/CSS/JavaScript
+- Server-Sent Events (SSE)
+- Groq
+- Render
+- Vercel
 
-Plain HTML/CSS/JS. No npm.
+## Project Structure
 
-```
-python -m http.server 5500 --directory frontend
-```
-
-## Open dashboard
-
-Open [http://127.0.0.1:5500](http://127.0.0.1:5500)
-
-The dashboard calls the backend at `http://127.0.0.1:8000`. If the API is down, it shows: `Backend unavailable. Start FastAPI at http://127.0.0.1:8000`.
-
-## Demo flow
-
-1. Confirm stats cards load (totals come from `/stats`, not invented numbers).
-2. Browse the transaction table (ground truth is shown only for demo visibility; it is not used to compute risk).
-3. Click **Investigate** on a row.
-4. Watch the live SSE log:
-   - Checking user history...
-   - Checking previous chargebacks...
-   - Checking device...
-   - Checking merchant...
-   - Calculating risk score...
-   - Making decision...
-   - Generating explanation...
-   - Investigation complete.
-5. Read the score, ALLOW / REVIEW / BLOCK badge, per-signal points, and explanation source (Groq LLM or local fallback).
-
-Suggested IDs from the generated `seed_data.db` (do not treat these as production labels):
-
-| Demo | ID | Why it is useful |
-|---|---|---|
-| Clear fraud → BLOCK | `txn_0339` | Injected fraud: high amount at NightOwl Adult Shop, 01:46, city mismatch. Score 72. |
-| Suspicious → REVIEW | `txn_0001` | Injected fraud: GiftCard Galaxy, 4.1x average, 03:00, Sao Paulo vs home New York. Score 61. |
-| Legitimate normal → ALLOW | `txn_0003` | Typical grocery/transit-style spend in the user’s home city with no added risk points. Score 0. |
-| Legitimate unusual trap → ALLOW | `txn_0208` | Injected trap: Summit Electronics in another city, elevated amount, still under 30. Score 27. |
-
-## Risk scoring weights
-
-Maximum contribution per factor (total 100):
-
-| Factor | Max points |
-|---|---|
-| Amount anomaly | 35 |
-| New device | 20 |
-| Merchant risk | 20 |
-| Unusual time | 15 |
-| Location mismatch | 10 |
-
-Amount anomaly scales with how far the charge is from the user’s historical average (1–2x low, 2–5x moderate, 5–10x high, >10x near maximum). Merchant points are reduced if the user has used that merchant before. Unusual time is strongest between 12 AM and 5 AM.
-
-## Decision thresholds
-
-- score **< 30** → ALLOW
-- score **30–70** → REVIEW
-- score **> 70** → BLOCK
-
-## Synthetic evaluation metrics
-
-`GET /stats` reports:
-
-- `fraud_caught_rate`: injected synthetic fraud transactions that received BLOCK or REVIEW, divided by total injected fraud transactions
-- `trap_allowed_rate`: injected synthetic legitimate unusual (trap) transactions that received ALLOW, divided by total trap transactions
-
-These are **not** real-world fraud detection accuracy metrics. They only describe how this rule engine behaves on the synthetic seed set. The dashboard labels them “Injected Fraud Patterns Caught” and “Legitimate Trap Transactions Allowed”.
+trustlayer/
+├── backend/
+│   ├── agents/
+│   ├── main.py
+│   ├── database.py
+│   ├── data_generator.py
+│   ├── models.py
+│   └── requirements.txt
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
+├── seed_data.db
+└── README.md
