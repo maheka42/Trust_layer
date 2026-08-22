@@ -10,9 +10,8 @@ The system is designed to explain *why* a transaction was flagged instead of pro
 
 ## Live Demo
 
-Frontend: https://trust-layer-smoky.vercel.app
+LINK: https://trust-layer-smoky.vercel.app
 
-Backend API: https://trust-layer-backend-wta9.onrender.com
 
 ## How It Works
 
