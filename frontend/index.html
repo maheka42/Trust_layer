@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TrustLayer — Explainable Agentic Risk Manager</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <p class="eyebrow">TRUSTLAYER</p>
+          <h1>Explainable Agentic Risk Manager</h1>
+          <p class="subtitle">
+            Real-time transaction investigation with transparent risk reasoning
+          </p>
+        </div>
+        <div id="backend-status" class="status-pill">Checking backend...</div>
+      </header>
+
+      <section id="error-banner" class="banner hidden" role="alert"></section>
+
+      <section class="stats" id="stats">
+        <article class="stat-card">
+          <span class="stat-label">Total Transactions</span>
+          <strong id="stat-total">—</strong>
+        </article>
+        <article class="stat-card allow">
+          <span class="stat-label">ALLOW</span>
+          <strong id="stat-allow">—</strong>
+        </article>
+        <article class="stat-card review">
+          <span class="stat-label">REVIEW</span>
+          <strong id="stat-review">—</strong>
+        </article>
+        <article class="stat-card block">
+          <span class="stat-label">BLOCK</span>
+          <strong id="stat-block">—</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Injected Fraud Patterns Caught</span>
+          <strong id="stat-fraud">—</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Legitimate Trap Transactions Allowed</span>
+          <strong id="stat-trap">—</strong>
+        </article>
+      </section>
+
+      <p class="tune-caption">
+        System is tuned for recall — flags aggressively, escalates to BLOCK only on multiple compounding signals.
+      </p>
+
+      <section class="eval" aria-label="Synthetic evaluation metrics">
+        <h2 class="eval-title">Synthetic evaluation metrics</h2>
+        <div class="eval-grid">
+          <article class="eval-card allow">
+            <span class="stat-label">Fraud Caught</span>
+            <strong id="eval-fraud-caught">—</strong>
+            <span id="eval-fraud-caught-pct" class="muted"></span>
+          </article>
+          <article class="eval-card block">
+            <span class="stat-label">Fraud Missed</span>
+            <strong id="eval-fraud-missed">—</strong>
+            <span id="eval-fraud-missed-pct" class="muted"></span>
+          </article>
+          <article class="eval-card allow">
+            <span class="stat-label">Trap Correctly Allowed</span>
+            <strong id="eval-trap-ok">—</strong>
+            <span id="eval-trap-ok-pct" class="muted"></span>
+          </article>
+          <article class="eval-card review">
+            <span class="stat-label">Trap Incorrectly Flagged</span>
+            <strong id="eval-trap-flag">—</strong>
+            <span id="eval-trap-flag-pct" class="muted"></span>
+          </article>
+        </div>
+      </section>
+
+      <main class="layout">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Transactions</h2>
+            <span id="txn-count" class="muted"></span>
+          </div>
+          <div id="txn-empty" class="empty hidden">No transactions found.</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>User</th>
+                  <th>Amount</th>
+                  <th>Merchant</th>
+                  <th>City</th>
+                  <th>Time</th>
+                  <th>Ground Truth</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="txn-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel investigation">
+          <div class="panel-head">
+            <h2>Investigation</h2>
+            <span id="pulse" class="pulse hidden" aria-hidden="true"></span>
+          </div>
+          <p id="investigate-hint" class="muted">
+            Select a transaction and click Investigate.
+          </p>
+          <pre id="log" class="log"></pre>
+
+          <div id="result" class="result hidden">
+            <div class="score-row">
+              <div>
+                <span class="stat-label">Risk Score</span>
+                <div class="score-line">
+                  <span id="risk-score" class="score">—</span>
+                  <span class="score-max">/ 100</span>
+                </div>
+              </div>
+              <div class="decision-wrap">
+                <div id="decision-badge" class="decision">—</div>
+                <p id="primary-driver" class="primary-driver hidden"></p>
+              </div>
+            </div>
+
+            <h3>Triggered signals</h3>
+            <div id="signals" class="signals"></div>
+            <p id="signal-sum" class="muted"></p>
+
+            <h3>Why this decision?</h3>
+            <p id="explanation" class="explanation"></p>
+            <p id="explanation-source" class="source-pill"></p>
+
+            <h3>Transaction details</h3>
+            <dl id="details" class="details"></dl>
+          </div>
+        </section>
+      </main>
+    </div>
+    <!-- Start locally: python -m http.server 5500 --directory frontend -->
+    <script src="app.js"></script>
+  </body>
+</html>
