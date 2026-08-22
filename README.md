@@ -75,19 +75,3 @@ If the Groq API is unavailable, TrustLayer uses a local fallback explanation so 
 - Render
 - Vercel
 
-## Project Structure
-
-trustlayer/
-├── backend/
-│   ├── agents/
-│   ├── main.py
-│   ├── database.py
-│   ├── data_generator.py
-│   ├── models.py
-│   └── requirements.txt
-├── frontend/
-│   ├── index.html
-│   ├── app.js
-│   └── style.css
-├── seed_data.db
-└── README.md
