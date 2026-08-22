@@ -16,6 +16,7 @@ app = FastAPI(title="TrustLayer")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Local development
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
@@ -24,8 +25,15 @@ app.add_middleware(
         "http://127.0.0.1:8080",
         "http://localhost:4173",
         "http://127.0.0.1:4173",
+        "http://127.0.0.1:5500",
+        "http://127.0.0.1:5501",
+        "http://localhost:5500",
+        "http://localhost:5501",
+
+        # Production frontend
+        "https://trust-layer-smoky.vercel.app",
     ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,14 +75,21 @@ def investigate_transaction(transaction_id: str) -> StreamingResponse:
         ).fetchone()
     finally:
         conn.close()
+
     if exists is None:
-        raise HTTPException(status_code=404, detail=f"Unknown transaction: {transaction_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown transaction: {transaction_id}",
+        )
 
     def event_stream():
         for event in investigate(transaction_id):
             yield f"data: {json.dumps(event)}\n\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+    )
 
 
 @app.get("/stats")
@@ -84,31 +99,45 @@ def stats() -> dict:
         rows = conn.execute(
             """
             SELECT
-                t.id, t.user_id, t.device_id, t.merchant_id, t.amount, t.currency,
-                t.timestamp, t.city, t.country, t.ground_truth
+                t.id,
+                t.user_id,
+                t.device_id,
+                t.merchant_id,
+                t.amount,
+                t.currency,
+                t.timestamp,
+                t.city,
+                t.country,
+                t.ground_truth
             FROM transactions t
             """
         ).fetchall()
+
         decisions = {"ALLOW": 0, "REVIEW": 0, "BLOCK": 0}
         fraud_total = 0
         fraud_caught = 0
         trap_total = 0
         trap_allowed = 0
+
         for row in rows:
             txn = dict(row)
             scored = score_transaction(txn, conn=conn)
             decision = scored["decision"]
             decisions[decision] += 1
+
             if txn["ground_truth"] == "fraud":
                 fraud_total += 1
                 if decision in {"BLOCK", "REVIEW"}:
                     fraud_caught += 1
+
             elif txn["ground_truth"] == "trap":
                 trap_total += 1
                 if decision == "ALLOW":
                     trap_allowed += 1
+
         fraud_missed = fraud_total - fraud_caught
         trap_flagged = trap_total - trap_allowed
+
         return {
             "total_transactions": len(rows),
             "allow_count": decisions["ALLOW"],
@@ -120,9 +149,18 @@ def stats() -> dict:
             "fraud_missed": fraud_missed,
             "trap_correctly_allowed": trap_allowed,
             "trap_incorrectly_flagged": trap_flagged,
-            "fraud_caught_rate": round(fraud_caught / fraud_total, 4) if fraud_total else None,
-            "trap_allowed_rate": round(trap_allowed / trap_total, 4) if trap_total else None,
+            "fraud_caught_rate": (
+                round(fraud_caught / fraud_total, 4)
+                if fraud_total
+                else None
+            ),
+            "trap_allowed_rate": (
+                round(trap_allowed / trap_total, 4)
+                if trap_total
+                else None
+            ),
         }
+
     finally:
         conn.close()
 
@@ -130,4 +168,9 @@ def stats() -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run(
+        "backend.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=False,
+    )
